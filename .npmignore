@@ -1,0 +1,6 @@
+.gitignore
+.gitattributes  
+tsconfig.json
+tsup.config.ts
+src/
+.github/

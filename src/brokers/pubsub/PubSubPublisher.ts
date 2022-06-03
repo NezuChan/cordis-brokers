@@ -1,0 +1,58 @@
+import { CordisBrokerError } from "../../error";
+import { Broker } from "../Broker";
+import { Channel, Options } from "amqplib";
+
+/**
+ * Options for initializing the pub/sub publisher
+ */
+export interface PubSubPublisherInitOptions {
+    /**
+     * Name of the queue/exchange to use
+     */
+    name: string;
+    /**
+     * Wether or not a fanout exchange are being used (multiple subs)
+     */
+    fanout?: boolean;
+}
+
+/**
+ * Publisher for simple publish/subscribe layout
+ */
+export class PubSubPublisher<T> extends Broker {
+    public name?: string;
+    public fanout?: boolean;
+
+    public constructor(channel: Channel) {
+        super(channel);
+    }
+
+    /**
+     * Initializes the client, making it ready to publish packets
+     * @param options Options to use for the server
+     */
+    public async init(options: PubSubPublisherInitOptions) {
+        const { name, fanout = false } = options;
+
+        this.name = fanout
+            ? await this.channel.assertExchange(name, "fanout", { durable: true }).then(d => d.exchange)
+            : await this.channel.assertQueue(name, { durable: true }).then(d => d.queue);
+
+        this.fanout = fanout;
+    }
+
+    /**
+     * Publishes a message
+     * @param content The data to publish
+     * @param options Message specific options
+     */
+    public publish(content: T, options?: Options.Publish) {
+        if (!this.name) {
+            throw new CordisBrokerError("brokerNotInit");
+        }
+
+        return this.fanout
+            ? this.util.sendToExchange({ to: this.name, content, key: "", options })
+            : this.util.sendToQueue({ to: this.name, content, options });
+    }
+}
