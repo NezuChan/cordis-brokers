@@ -1,0 +1,24 @@
+on:
+  release:
+    types:
+      - published
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # tag=v3
+      - name: Installing Node.js v16
+        uses: actions/setup-node@17f8bd926464a1afa4c6a11669539e9c1ba77048 # tag=v3
+        with:
+          node-version: '16'
+          registry-url: 'https://registry.npmjs.org/'
+      - run: |
+          git fetch origin main
+          git checkout main
+      - run: npm i
+      - run: npm run build
+      - name: Publish source
+        run: |
+          npm publish --access public || true
+        env:
+          NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}'
