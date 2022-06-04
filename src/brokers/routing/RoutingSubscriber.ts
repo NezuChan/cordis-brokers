@@ -27,6 +27,10 @@ export interface RoutingSubscriberInitOptions<K extends string> {
      * Use this so your workers don't play crazy catch-up with long-time downtime when they don't need to
      */
     maxMessageAge?: number;
+    /**
+     * Wether or not this broker should be durable
+     */
+    durable?: boolean;
 }
 
 export interface RoutingSubscriber<K extends string, T extends Record<K, any>> extends Broker {
@@ -56,10 +60,10 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
      * @param options Options used for this client
      */
     public async init(options: RoutingSubscriberInitOptions<K>) {
-        const { name, topicBased = false, keys, queue: rawQueue = "", maxMessageAge = Infinity } = options;
+        const { name, topicBased = false, keys, queue: rawQueue = "", maxMessageAge = Infinity, durable } = options;
 
-        const exchange = await this.channel.assertExchange(name, topicBased ? "topic" : "direct", { durable: false }).then(d => d.exchange);
-        const queue = await this.channel.assertQueue(rawQueue, { durable: true, exclusive: rawQueue === "" }).then(data => data.queue);
+        const exchange = await this.channel.assertExchange(name, topicBased ? "topic" : "direct", { durable }).then(d => d.exchange);
+        const queue = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" }).then(data => data.queue);
 
         for (const key of keys) {
             await this.channel.bindQueue(queue, exchange, key);
