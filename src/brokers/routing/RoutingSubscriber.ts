@@ -17,7 +17,7 @@ export interface RoutingSubscriberInitOptions<K extends string> {
     /**
      * The routing keys you wish to subscribe to
      */
-    keys: K[];
+    keys: K | K[];
     /**
      * Queue to bind the packets to
      * @default queue Randomly generated queue by your AMQP server
@@ -70,8 +70,12 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
         const exchange = await this.channel.assertExchange(name, topicBased ? "topic" : "direct", { durable }).then(d => d.exchange);
         const queue = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" }).then(data => data.queue);
 
-        for (const key of keys) {
-            await this.channel.bindQueue(queue, exchange, key);
+        if (Array.isArray(keys)) {
+            for (const key of keys) {
+                await this.channel.bindQueue(queue, exchange, key);
+            }
+        } else {
+            await this.channel.bindQueue(queue, exchange, keys);
         }
 
         await this.util.consumeQueue({
