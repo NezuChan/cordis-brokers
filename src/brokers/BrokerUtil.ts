@@ -1,5 +1,4 @@
 import { randomBytes } from "crypto";
-import { encode, decode, ExtensionCodec } from "@msgpack/msgpack";
 import { CordisBrokerTypeError } from "../error";
 import { Message, Options, MessageProperties } from "amqplib";
 import { Broker } from "./Broker";
@@ -99,25 +98,12 @@ export interface ReplyData<T = unknown> {
  * Class containing utilities for interacting with amqplib
  */
 export class BrokerUtil {
-    public readonly packBigintExtensionCodec = new ExtensionCodec();
     public constructor(
     /**
      * Broker instance
      */
         public readonly broker: Broker
-    ) {
-        this.packBigintExtensionCodec.register({
-            type: 0,
-            encode: (input: unknown) => {
-                if (typeof input === "bigint") {
-                    return encode(input.toString());
-                }
-
-                return null;
-            },
-            decode: (data: Uint8Array) => BigInt(decode(data) as string)
-        });
-    }
+    ) { }
 
     /**
      * Generates a base64 string with the given length using Node.js' Crypto
@@ -147,7 +133,7 @@ export class BrokerUtil {
                 }
 
                 try {
-                    await cb(decode(msg.content, { extensionCodec: this.packBigintExtensionCodec }) as T, msg);
+                    await cb(msg.content.toString() as unknown as T, msg);
                 } catch (e) {
                     this.broker.emit("error", e);
                     this.broker.channel.reject(msg, true);
@@ -172,8 +158,7 @@ export class BrokerUtil {
     public sendToQueue<T>(options: SendToQueueOptions<T>) {
         const { to, content, options: amqpOptions } = options;
 
-        const encoded = encode(content, { extensionCodec: this.packBigintExtensionCodec });
-        const data = Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength);
+        const data = Buffer.from(JSON.stringify(content));
         return this.broker.channel.sendToQueue(to, data, amqpOptions);
     }
 
@@ -185,8 +170,7 @@ export class BrokerUtil {
     public sendToExchange<T>(options: SendToExchangeOptions<T>) {
         const { to, content, key, options: amqpOptions } = options;
 
-        const encoded = encode(content, { extensionCodec: this.packBigintExtensionCodec });
-        const data = Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength);
+        const data = Buffer.from(JSON.stringify(content));
         return this.broker.channel.publish(to, key, data, amqpOptions);
     }
 

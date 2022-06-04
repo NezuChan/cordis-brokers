@@ -56,7 +56,6 @@
   },
   "dependencies": {
     "@cordis/error": "^1.2.0",
-    "@msgpack/msgpack": "^2.7.2",
     "amqplib": "^0.10.0"
   }
 }
