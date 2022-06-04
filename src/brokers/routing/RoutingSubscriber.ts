@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Broker } from "../Broker";
 import { Channel } from "amqplib";
 
@@ -31,6 +32,10 @@ export interface RoutingSubscriberInitOptions<K extends string> {
      * Wether or not this broker should be durable
      */
     durable?: boolean;
+    /**
+     * Emit as name
+     */
+    emitAsName?: boolean;
 }
 
 export interface RoutingSubscriber<K extends string, T extends Record<K, any>> extends Broker {
@@ -60,7 +65,7 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
      * @param options Options used for this client
      */
     public async init(options: RoutingSubscriberInitOptions<K>) {
-        const { name, topicBased = false, keys, queue: rawQueue = "", maxMessageAge = Infinity, durable } = options;
+        const { name, topicBased = false, keys, queue: rawQueue = "", maxMessageAge = Infinity, durable, emitAsName } = options;
 
         const exchange = await this.channel.assertExchange(name, topicBased ? "topic" : "direct", { durable }).then(d => d.exchange);
         const queue = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" }).then(data => data.queue);
@@ -71,13 +76,13 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
 
         await this.util.consumeQueue({
             queue,
-            cb: (content: { type: K; data: T[K] }, { properties: { timestamp } }) => {
+            cb: (content: { t: K; data: T[K] }, { properties: { timestamp } }) => {
                 // For whatever reason amqplib types all properties as any ONLY when recieving?
                 if ((timestamp as number) + maxMessageAge < Date.now()) {
                     return;
                 }
 
-                this.emit(content.type, content.data);
+                return emitAsName ? this.emit(name as any, content) : this.emit(content.t as any, content);
             },
             autoAck: true
         });
