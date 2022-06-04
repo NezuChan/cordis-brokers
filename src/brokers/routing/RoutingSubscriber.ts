@@ -86,7 +86,7 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
                     return;
                 }
 
-                return emitAsName ? this.emit(name as any, content) : this.emit(content.t as any, content);
+                return emitAsName ? this.emit(name as any, JSON.parse(content)) : this.emit(content.t as any, JSON.parse(content));
             },
             autoAck: true
         });
