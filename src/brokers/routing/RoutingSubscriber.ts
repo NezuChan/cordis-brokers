@@ -11,9 +11,9 @@ export interface RoutingSubscriberInitOptions<K extends string> {
      */
     name: string;
     /**
-     * Wether or not this broker should be using a topic or a direct exchange
+     * Wether or not this broker should be using a topic, direct, or fanout exchange
      */
-    topicBased?: boolean;
+    exchangeType?: "direct" | "fanout" | "topic";
     /**
      * The routing keys you wish to subscribe to
      */
@@ -33,9 +33,13 @@ export interface RoutingSubscriberInitOptions<K extends string> {
      */
     durable?: boolean;
     /**
-     * Emit as name
+     * Emit as type
      */
-    emitAsName?: boolean;
+    emitAsType?: boolean;
+    /**
+     * Wether or not to use exchange binding
+     */
+    useExchangeBinding?: boolean;
 }
 
 export interface RoutingSubscriber<K extends string, T extends Record<K, any>> extends Broker {
@@ -65,30 +69,42 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
      * @param options Options used for this client
      */
     public async init(options: RoutingSubscriberInitOptions<K>) {
-        const { name, topicBased = false, keys, queue: rawQueue = "", maxMessageAge = Infinity, durable, emitAsName } = options;
+        const { maxMessageAge = Infinity, emitAsType } = options;
 
-        const exchange = await this.channel.assertExchange(name, topicBased ? "topic" : "direct", { durable }).then(d => d.exchange);
-        const queue = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" }).then(data => data.queue);
-
-        if (Array.isArray(keys)) {
-            for (const key of keys) {
-                await this.channel.bindQueue(queue, exchange, key);
-            }
-        } else {
-            await this.channel.bindQueue(queue, exchange, keys);
-        }
+        const queue = await this.getQueue(options);
 
         await this.util.consumeQueue({
             queue,
-            cb: (content: { t: K; data: T[K] }, { properties: { timestamp } }) => {
+            cb: (content: { type: K; data: T[K] }, { properties: { timestamp } }) => {
                 // For whatever reason amqplib types all properties as any ONLY when recieving?
                 if ((timestamp as number) + maxMessageAge < Date.now()) {
                     return;
                 }
 
-                return emitAsName ? this.emit(name as any, JSON.parse(content)) : this.emit(content.t as any, JSON.parse(content));
+                return emitAsType ? this.emit(content.type as any, content) : this.emit(content.data.t, content);
             },
             autoAck: true
         });
+    }
+
+    public async getQueue(options: RoutingSubscriberInitOptions<K>) {
+        const { name, exchangeType = "direct", keys, queue: rawQueue = "", durable, useExchangeBinding } = options;
+        if (useExchangeBinding) {
+            const exchange = await this.channel.assertExchange(name, exchangeType, { durable }).then(d => d.exchange);
+            const queue = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" }).then(data => data.queue);
+
+            if (Array.isArray(keys)) {
+                for (const key of keys) {
+                    await this.channel.bindQueue(queue, exchange, key);
+                }
+            } else {
+                await this.channel.bindQueue(queue, exchange, keys);
+            }
+
+            return queue;
+        }
+
+        const { queue } = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" });
+        return queue;
     }
 }

@@ -11,9 +11,9 @@ export interface RoutingPublisherInitOptions {
      */
     name: string;
     /**
-     * Wether or not this broker should be using a topic or a direct exchange
+     * Wether or not this broker should be using a topic, direct, or fanout exchange
      */
-    topicBased?: boolean;
+    exchangeType?: "direct" | "fanout" | "topic";
     /**
      * Wether or not this broker should be durable
      */
@@ -39,7 +39,7 @@ export class RoutingPublisher<K extends string, T extends Record<K, any>> extend
      */
     public async init(options: RoutingPublisherInitOptions) {
         this.exchange = await this.channel
-            .assertExchange(options.name, options.topicBased ? "topic" : "direct", { durable: options.durable })
+            .assertExchange(options.name, options.exchangeType ??= "direct", { durable: options.durable })
             .then(d => d.exchange);
     }
 
