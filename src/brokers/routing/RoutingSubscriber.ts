@@ -81,7 +81,8 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
                     return;
                 }
 
-                return emitAsType ? this.emit(content.type as any, content) : this.emit(content.data.t, content);
+                // eslint-disable-next-line max-len
+                return emitAsType ? this.emit((JSON.parse(content as any) as { type: K; data: T[K] }).type as any, content) : this.emit((JSON.parse(content as any) as { type: K; data: T[K] }).data.t, content);
             },
             autoAck: true
         });
