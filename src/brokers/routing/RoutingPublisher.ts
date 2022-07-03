@@ -9,7 +9,7 @@ export interface RoutingPublisherInitOptions {
     /**
      * Name of the exchange to use
      */
-    name: string;
+    name?: string;
     /**
      * Wether or not this broker should be using a topic, direct, or fanout exchange
      */
@@ -18,6 +18,14 @@ export interface RoutingPublisherInitOptions {
      * Wether or not this broker should be durable
      */
     durable?: boolean;
+    /**
+     * Name of queue to use
+     */
+    queue?: string;
+    /**
+     * Wether or not to use exchange binding
+     */
+    useExchangeBinding?: boolean;
 }
 
 /**
@@ -29,6 +37,11 @@ export class RoutingPublisher<K extends string, T extends Record<K, any>> extend
      */
     public exchange?: string;
 
+    /**
+     * Queue being used
+     */
+    public queue?: string;
+
     public constructor(channel: Channel) {
         super(channel);
     }
@@ -38,9 +51,15 @@ export class RoutingPublisher<K extends string, T extends Record<K, any>> extend
      * @param options Options used for this server
      */
     public async init(options: RoutingPublisherInitOptions) {
-        this.exchange = await this.channel
-            .assertExchange(options.name, options.exchangeType ??= "direct", { durable: options.durable })
-            .then(d => d.exchange);
+        if (options.useExchangeBinding && options.name) {
+            this.exchange = await this.channel
+                .assertExchange(options.name, options.exchangeType ??= "direct", { durable: options.durable })
+                .then(d => d.exchange);
+        }
+
+        if (options.queue) {
+            this.queue = await this.channel.assertQueue(options.queue, { durable: options.durable }).then(d => d.queue);
+        }
     }
 
     /**
@@ -61,6 +80,25 @@ export class RoutingPublisher<K extends string, T extends Record<K, any>> extend
             content: { type: key, data: content },
             key,
             options
+        });
+    }
+
+    /**
+     * Publishes a message under the given key
+     * @param key Event you're publishing
+     * @param content Data to publish
+     * @param options Message-specific options
+     */
+    public publishAsQueue<LK extends K>(key: LK, content: T[LK], options: Options.Publish = {}) {
+        if (!this.queue) {
+            throw new CordisBrokerError("brokerNotInit");
+        }
+
+        options.timestamp ??= Date.now();
+
+        return this.util.sendToQueue({
+            to: this.queue,
+            content: { type: key, data: content }
         });
     }
 }
