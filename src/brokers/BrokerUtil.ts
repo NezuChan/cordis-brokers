@@ -133,7 +133,7 @@ export class BrokerUtil {
                 }
 
                 try {
-                    await cb(msg.content.toString() as unknown as T, msg);
+                    await cb(JSON.parse(msg.content.toString()) as unknown as T, msg);
                 } catch (e) {
                     this.broker.emit("error", e);
                     this.broker.channel.reject(msg, true);

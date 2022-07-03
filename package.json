@@ -1,6 +1,6 @@
 {
   "name": "@nezuchan/cordis-brokers",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "A fork of @cordis/brokers because the original one was unmaintained",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
