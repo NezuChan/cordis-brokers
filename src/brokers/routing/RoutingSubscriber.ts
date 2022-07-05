@@ -33,10 +33,6 @@ export interface RoutingSubscriberInitOptions<K extends string> {
      */
     durable?: boolean;
     /**
-     * Emit as type
-     */
-    emitAsType?: boolean;
-    /**
      * Wether or not to use exchange binding
      */
     useExchangeBinding?: boolean;
@@ -69,20 +65,19 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
      * @param options Options used for this client
      */
     public async init(options: RoutingSubscriberInitOptions<K>) {
-        const { maxMessageAge = Infinity, emitAsType } = options;
+        const { maxMessageAge = Infinity } = options;
 
         const queue = await this.getQueue(options);
 
         await this.util.consumeQueue({
             queue,
-            cb: (content: { type: K; data: T[K] }, { properties: { timestamp } }) => {
+            cb: (content: { type?: any; t?: any; data: T[K] }, { properties: { timestamp } }) => {
                 // For whatever reason amqplib types all properties as any ONLY when recieving?
                 if ((timestamp as number) + maxMessageAge < Date.now()) {
                     return;
                 }
 
-                // eslint-disable-next-line max-len
-                return emitAsType ? this.emit(content.type as any, content) : this.emit(content.data.t, content);
+                this.emit(content.t ?? content.type ?? content.data.t, content);
             },
             autoAck: true
         });
