@@ -14,6 +14,10 @@ export interface RpcPublisherInitOptions {
      * How long to wait before dropping a packet
      */
     timeout?: number;
+    /**
+     * Whenever will auto ack the message
+     */
+    autoAck?: boolean;
 }
 
 /**
@@ -60,7 +64,7 @@ export class RpcPublisher<S, C> extends Broker {
      * @param options Options used for this client
      */
     public async init(options: RpcPublisherInitOptions) {
-        const { name, timeout = 1e4 } = options;
+        const { name, timeout = 1e4, autoAck = false } = options;
 
         this.serverQueue = await this.channel.assertQueue(name, { durable: false }).then(d => d.queue);
         this.replyQueue = await this.channel.assertQueue("", { exclusive: true }).then(d => d.queue);
@@ -78,7 +82,7 @@ export class RpcPublisher<S, C> extends Broker {
                     }
                 }
             },
-            autoAck: false
+            autoAck
         });
     }
 
