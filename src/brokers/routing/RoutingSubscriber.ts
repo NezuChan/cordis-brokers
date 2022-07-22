@@ -9,7 +9,7 @@ export interface RoutingSubscriberInitOptions<K extends string> {
     /**
      * Name of the exchange to use
      */
-    name: string;
+    name?: string;
     /**
      * Wether or not this broker should be using a topic, direct, or fanout exchange
      */
@@ -85,7 +85,7 @@ export class RoutingSubscriber<K extends string, T extends Record<K, any>> exten
 
     public async getQueue(options: RoutingSubscriberInitOptions<K>) {
         const { name, exchangeType = "direct", keys, queue: rawQueue = "", durable, useExchangeBinding } = options;
-        if (useExchangeBinding) {
+        if (useExchangeBinding && name) {
             const exchange = await this.channel.assertExchange(name, exchangeType, { durable }).then(d => d.exchange);
             const queue = await this.channel.assertQueue(rawQueue, { exclusive: rawQueue === "" }).then(data => data.queue);
 
